@@ -1,0 +1,106 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+* {
+  border-color: theme("colors.line.DEFAULT");
+}
+
+html,
+body {
+  background-color: theme("colors.canvas");
+  color: theme("colors.ink.DEFAULT");
+  font-family: theme("fontFamily.sans");
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  background-image:
+    radial-gradient(1200px 600px at 78% -10%, rgba(61, 212, 192, 0.05), transparent 60%),
+    radial-gradient(900px 500px at -5% 110%, rgba(91, 157, 255, 0.05), transparent 55%);
+  background-attachment: fixed;
+}
+
+/* Thin control-room scrollbars */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: theme("colors.surface.inset");
+}
+::-webkit-scrollbar-thumb {
+  background: theme("colors.line.strong");
+  border-radius: 2px;
+  border: 2px solid theme("colors.surface.inset");
+}
+::-webkit-scrollbar-thumb:hover {
+  background: theme("colors.ink.faint");
+}
+
+::selection {
+  background: rgba(61, 212, 192, 0.28);
+  color: #fff;
+}
+
+@layer components {
+  /* Panel: the primary control-room surface. Sharp corners, hairline frame. */
+  .panel {
+    @apply relative rounded-[3px] border border-line bg-surface shadow-panel;
+  }
+  .panel-raised {
+    @apply relative rounded-[3px] border border-line bg-surface-raised shadow-panel;
+  }
+
+  /* Eyebrow label — the mono utility caption used across the console */
+  .eyebrow {
+    @apply font-mono text-2xs uppercase tracking-[0.18em] text-ink-faint;
+  }
+
+  /* Status pill */
+  .pill {
+    @apply inline-flex items-center gap-1.5 rounded-[2px] border px-2 py-1 font-mono text-2xs uppercase tracking-[0.1em];
+  }
+
+  /* Tag chip — refinery ISA equipment tags (P-101, V-204 ...) */
+  .tag {
+    @apply inline-flex items-center rounded-[2px] border border-signal/30 bg-signal/10 px-1.5 py-0.5 font-mono text-2xs font-semibold tracking-wide text-signal;
+  }
+
+  .led {
+    @apply inline-block h-2 w-2 shrink-0 rounded-full;
+  }
+
+  .grid-bg {
+    background-size: 22px 22px;
+    @apply bg-grid;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-[2px] border px-3 py-2 font-mono text-xs font-semibold uppercase tracking-[0.08em] transition-colors disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  .btn-primary {
+    @apply border-signal/50 bg-signal/15 text-signal hover:bg-signal/25;
+  }
+  .btn-ghost {
+    @apply border-line bg-surface-inset text-ink-muted hover:border-line-strong hover:text-ink;
+  }
+  .btn-danger {
+    @apply border-danger/50 bg-danger/10 text-danger hover:bg-danger/20;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

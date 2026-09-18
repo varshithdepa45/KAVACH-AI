@@ -1,0 +1,25 @@
+# Node / Next
+node_modules/
+.next/
+out/
+npm-debug.log*
+.env
+.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# KAVACH runtime artifacts
+backend/kavach.db
+demo-data/uploads/*
+!demo-data/uploads/.gitkeep
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

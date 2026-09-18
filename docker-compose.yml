@@ -1,0 +1,38 @@
+# KAVACH AI — Sovereign On-Premise Agentic AI Workbench
+# One-command local stack. Nothing here reaches the public internet at runtime.
+#
+#   docker compose up --build
+#   → frontend  http://localhost:3000
+#   → backend   http://localhost:8000/api/health
+#
+# The `internal: true` network on the backend models the air-gap: the container
+# has no route to the outside world. The frontend keeps normal networking only
+# so a browser on the host can reach it.
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    container_name: kavach-backend
+    environment:
+      KAVACH_MODE: airgapped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./demo-data:/app/demo-data
+      - ./generated:/app/generated
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/frontend.Dockerfile
+    container_name: kavach-frontend
+    environment:
+      NEXT_PUBLIC_API_BASE: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
