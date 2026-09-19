@@ -1,6 +1,6 @@
 KAVACH AI - Autonomous Inspection Report
 Facility: KAVACH DEMO REFINERY | Unit 4
-Generated: 2026-09-04T12:34:04.170304+00:00 | Mode: airgapped
+Generated: 2026-09-19T04:24:07.372572+00:00 | Mode: airgapped
 Run ID: 1
 
 FICTIONAL DEMONSTRATION DATA - NOT REAL FACILITY DATA
@@ -9,7 +9,7 @@ FICTIONAL DEMONSTRATION DATA - NOT REAL FACILITY DATA
 1. EXECUTIVE SUMMARY
    Verification score: 94.0%
    Evidence-backed: 8/9
-   Model routing: Vision Model (vision)
+   Model routing: Qwen3-4B (reasoning)
 
 2. FINDINGS
    1. [HIGH] Potential corrosion detected around P-101 outlet
@@ -46,10 +46,10 @@ FICTIONAL DEMONSTRATION DATA - NOT REAL FACILITY DATA
 
 4. PIPELINE TRACE
    - [security_agent] Security perimeter verified
-   - [router_agent] Task routed to Vision Model
+   - [router_agent] Task routed to Qwen3-4B
    - [router_agent] Execution plan created
-   - [document_agent] Documents loaded
-   - [document_agent] OCR completed
+   - [document_agent] Uploaded document loaded
+   - [document_agent] Document analysis prepared
    - [vision_agent] P&ID regions detected
    - [knowledge_agent] Knowledge retrieved
    - [reasoning_agent] Findings generated

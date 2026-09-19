@@ -83,6 +83,56 @@ def get_document(doc_id: int):
     return doc
 
 
+def _extract_document_text(path: str, doc_type: str) -> str:
+    """Extract readable text without making document analysis cloud-dependent."""
+    from pathlib import Path
+
+    source = Path(path)
+    if doc_type in {"txt", "csv", "py"}:
+        return source.read_text(encoding="utf-8", errors="replace")
+    if doc_type == "docx":
+        from docx import Document
+
+        document = Document(str(source))
+        return "\n".join(p.text for p in document.paragraphs)
+    if doc_type == "pdf":
+        try:
+            from pypdf import PdfReader
+
+            return "\n".join(page.extract_text() or "" for page in PdfReader(str(source)).pages)
+        except ImportError:
+            return "PDF text extraction requires the optional pypdf package."
+    return ""
+
+
+@router.post("/documents/{doc_id}/analyze")
+def analyze_document(doc_id: int, payload: TaskCreate):
+    """Run the local agent pipeline for one uploaded document."""
+    document = db.fetch_one("SELECT * FROM documents WHERE id=?", (doc_id,))
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+    text = _extract_document_text(document["path"], document["doc_type"])
+    task_text = payload.title + " " + (payload.description or "")
+    task_id = db.insert("tasks", {
+        "title": payload.title,
+        "description": f"Document {document['filename']}: {text[:4000]}",
+        "task_type": payload.task_type or "document_analysis",
+        "status": "running",
+        "run_id": None,
+        "created_at": _now(),
+    })
+    run = orchestrator.run_pipeline(
+        task_text=task_text,
+        scenario_name=f"document:{document['filename']}",
+        task_id=task_id,
+        document=document,
+        document_text=text,
+    )
+    db.execute("UPDATE tasks SET status=?, run_id=? WHERE id=?",
+               ("completed", run["run"]["id"], task_id))
+    return {"task": db.fetch_one("SELECT * FROM tasks WHERE id=?", (task_id,)), "run": run}
+
+
 # --- Tasks --------------------------------------------------------------------
 @router.post("/tasks")
 def create_task(payload: TaskCreate):

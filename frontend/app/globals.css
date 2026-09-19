@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 * {
@@ -21,8 +21,17 @@ body {
 
 body {
   background-image:
-    radial-gradient(1200px 600px at 78% -10%, rgba(61, 212, 192, 0.05), transparent 60%),
-    radial-gradient(900px 500px at -5% 110%, rgba(91, 157, 255, 0.05), transparent 55%);
+    radial-gradient(
+      900px 480px at 90% -8%,
+      rgba(7, 140, 148, 0.1),
+      transparent 62%
+    ),
+    radial-gradient(
+      800px 520px at -10% 110%,
+      rgba(255, 184, 77, 0.12),
+      transparent 58%
+    ),
+    linear-gradient(135deg, #ffffff 0%, #ffffff 48%, #fffaf0 100%);
   background-attachment: fixed;
 }
 
@@ -44,17 +53,17 @@ body {
 }
 
 ::selection {
-  background: rgba(61, 212, 192, 0.28);
-  color: #fff;
+  background: rgba(7, 140, 148, 0.2);
+  color: #15233b;
 }
 
 @layer components {
-  /* Panel: the primary control-room surface. Sharp corners, hairline frame. */
+  /* Panel: the primary light dashboard surface. */
   .panel {
-    @apply relative rounded-[3px] border border-line bg-surface shadow-panel;
+    @apply relative rounded-[6px] border border-line bg-surface shadow-panel;
   }
   .panel-raised {
-    @apply relative rounded-[3px] border border-line bg-surface-raised shadow-panel;
+    @apply relative rounded-[6px] border border-line bg-surface-raised shadow-panel;
   }
 
   /* Eyebrow label — the mono utility caption used across the console */
@@ -64,12 +73,12 @@ body {
 
   /* Status pill */
   .pill {
-    @apply inline-flex items-center gap-1.5 rounded-[2px] border px-2 py-1 font-mono text-2xs uppercase tracking-[0.1em];
+    @apply inline-flex items-center gap-1.5 rounded-full border px-2 py-1 font-mono text-2xs uppercase tracking-[0.1em];
   }
 
   /* Tag chip — refinery ISA equipment tags (P-101, V-204 ...) */
   .tag {
-    @apply inline-flex items-center rounded-[2px] border border-signal/30 bg-signal/10 px-1.5 py-0.5 font-mono text-2xs font-semibold tracking-wide text-signal;
+    @apply inline-flex items-center rounded-full border border-signal/30 bg-signal/10 px-1.5 py-0.5 font-mono text-2xs font-semibold tracking-wide text-signal;
   }
 
   .led {
@@ -82,7 +91,7 @@ body {
   }
 
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-[2px] border px-3 py-2 font-mono text-xs font-semibold uppercase tracking-[0.08em] transition-colors disabled:cursor-not-allowed disabled:opacity-40;
+    @apply inline-flex items-center justify-center gap-2 rounded-full border px-3 py-2 font-mono text-xs font-semibold uppercase tracking-[0.08em] transition-colors disabled:cursor-not-allowed disabled:opacity-40;
   }
   .btn-primary {
     @apply border-signal/50 bg-signal/15 text-signal hover:bg-signal/25;

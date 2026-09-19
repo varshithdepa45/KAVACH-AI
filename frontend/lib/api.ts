@@ -37,4 +37,21 @@ export const api = {
   deliverables: () => get<any>("/api/deliverables"),
   runDemo: () =>
     fetch(`${BASE}/api/demo/run`, { method: "POST" }).then((r) => r.json()),
+  uploadDocument: (file: File) => {
+    const body = new FormData();
+    body.append("file", file);
+    return fetch(`${BASE}/api/documents/upload`, { method: "POST", body }).then((r) => {
+      if (!r.ok) throw new Error(`Upload failed (${r.status})`);
+      return r.json();
+    });
+  },
+  analyzeDocument: (id: string | number, title: string, description = "") =>
+    fetch(`${BASE}/api/documents/${id}/analyze`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, description }),
+    }).then((r) => {
+      if (!r.ok) throw new Error(`Analysis failed (${r.status})`);
+      return r.json();
+    }),
 };

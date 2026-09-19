@@ -1,7 +1,7 @@
 # KAVACH AI - Autonomous Inspection Report
 
 **Facility:** KAVACH DEMO REFINERY - Unit 4  
-**Generated:** 2026-09-04T12:34:04.171010+00:00  
+**Generated:** 2026-09-19T04:24:07.374273+00:00  
 **Mode:** `airgapped`  |  **Run ID:** 1
 
 > FICTIONAL DEMONSTRATION DATA - NOT REAL FACILITY DATA
@@ -10,7 +10,7 @@
 
 - **Verification score:** 94.0%
 - **Evidence-backed:** 8/9
-- **Model routing:** Vision Model (vision)
+- **Model routing:** Qwen3-4B (reasoning)
 
 ## Findings
 
@@ -69,10 +69,10 @@
 ## Pipeline Trace
 
 1. **security_agent** - Security perimeter verified
-1. **router_agent** - Task routed to Vision Model
+1. **router_agent** - Task routed to Qwen3-4B
 1. **router_agent** - Execution plan created
-1. **document_agent** - Documents loaded
-1. **document_agent** - OCR completed
+1. **document_agent** - Uploaded document loaded
+1. **document_agent** - Document analysis prepared
 1. **vision_agent** - P&ID regions detected
 1. **knowledge_agent** - Knowledge retrieved
 1. **reasoning_agent** - Findings generated
