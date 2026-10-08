@@ -1,7 +1,8 @@
-"""Document agent - loads demo documents and performs (mock) OCR.
+"""Document agent - loads the documents a run will work on.
 
-Reads the fictional document set for the scenario, reports load and OCR steps.
-No real OCR engine is invoked; text comes from the canonical scenario content.
+For an uploaded document it reports the text extracted locally from the file.
+For the demo scenario it loads the fictional document set and reports a (mock)
+OCR step; no real OCR engine is invoked there.
 """
 from __future__ import annotations
 
@@ -18,8 +19,14 @@ class DocumentAgent(BaseAgent):
             ctx.artifacts["documents"] = [uploaded["filename"]]
             ctx.add_step(self.name, "Uploaded document loaded",
                          detail=f"Loaded {uploaded['filename']} ({len(text)} extracted characters).")
-            ctx.add_step(self.name, "Document analysis prepared",
-                         detail="Local text is available to downstream agents; no external upload performed.")
+            note = ctx.artifacts.get("document_note", "")
+            if text.strip():
+                ctx.add_step(self.name, "Document analysis prepared",
+                             detail="Local text is available to downstream agents; "
+                                    "no external upload performed.")
+            else:
+                ctx.add_step(self.name, "No text extracted", status="warning",
+                             detail=f"Nothing to analyse: {note or 'the document is empty'}.")
             return ctx
 
         from ..services import scenario

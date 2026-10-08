@@ -3,9 +3,11 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, StreamingResponse
 
 from .. import config
@@ -19,6 +21,7 @@ from ..schemas.schemas import (AgentRunRequest, DemoRunRequest, HealthResponse,
                                ReviewRequest, TaskCreate)
 from ..security.guard import ValidationError, safe_join, validate_upload
 from ..security.middleware import write_audit
+from ..services import document_analysis
 from ..services import knowledge as knowledge_service
 from ..services import system_status
 from ..services.deliverables import optional_formats
@@ -54,6 +57,12 @@ async def upload_document(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail=str(exc))
 
     config.ensure_dirs()
+    # Never overwrite an earlier upload that shares the filename.
+    stem, suffix, n = target.stem, target.suffix, 1
+    while target.exists():
+        target = target.with_name(f"{stem}_{n}{suffix}")
+        n += 1
+    safe_name = target.name
     with open(target, "wb") as fh:
         fh.write(data)
 
@@ -85,35 +94,13 @@ def get_document(doc_id: int):
     return doc
 
 
-def _extract_document_text(path: str, doc_type: str) -> str:
-    """Extract readable text without making document analysis cloud-dependent."""
-    from pathlib import Path
-
-    source = Path(path)
-    if doc_type in {"txt", "csv", "py"}:
-        return source.read_text(encoding="utf-8", errors="replace")
-    if doc_type == "docx":
-        from docx import Document
-
-        document = Document(str(source))
-        return "\n".join(p.text for p in document.paragraphs)
-    if doc_type == "pdf":
-        try:
-            from pypdf import PdfReader
-
-            return "\n".join(page.extract_text() or "" for page in PdfReader(str(source)).pages)
-        except ImportError:
-            return "PDF text extraction requires the optional pypdf package."
-    return ""
-
-
 @router.post("/documents/{doc_id}/analyze")
 def analyze_document(doc_id: int, payload: TaskCreate):
     """Run the local agent pipeline for one uploaded document."""
     document = db.fetch_one("SELECT * FROM documents WHERE id=?", (doc_id,))
     if not document:
         raise HTTPException(status_code=404, detail="Document not found")
-    text = _extract_document_text(document["path"], document["doc_type"])
+    text, note = document_analysis.extract_text(document["path"])
     task_text = payload.title + " " + (payload.description or "")
     task_id = db.insert("tasks", {
         "title": payload.title,
@@ -129,9 +116,13 @@ def analyze_document(doc_id: int, payload: TaskCreate):
         task_id=task_id,
         document=document,
         document_text=text,
+        document_note=note,
     )
     db.execute("UPDATE tasks SET status=?, run_id=? WHERE id=?",
                ("completed", run["run"]["id"], task_id))
+    write_audit("document.analyze",
+                detail=f"document {doc_id} ({document['filename']}) -> run {run['run']['id']}: "
+                       f"{len(run['findings'])} finding(s), status={run['run']['status']}")
     return {"task": db.fetch_one("SELECT * FROM tasks WHERE id=?", (task_id,)), "run": run}
 
 
@@ -188,7 +179,9 @@ def demo_run(payload: DemoRunRequest | None = None):
 async def demo_stream():
     """Server-sent events emitting each pipeline step as it 'runs'."""
     async def event_gen():
-        run = orchestrator.run_pipeline(
+        # The pipeline is synchronous; run it off the event loop.
+        run = await run_in_threadpool(
+            orchestrator.run_pipeline,
             task_text="Inspect Unit 4 P&ID and inspection report (streaming demo)",
             scenario_name="refinery_inspection",
         )
@@ -338,8 +331,6 @@ def download_deliverable(deliverable_id: int):
     d = db.fetch_one("SELECT * FROM deliverables WHERE id=?", (deliverable_id,))
     if not d:
         raise HTTPException(status_code=404, detail="Deliverable not found")
-    import os
-
     if not os.path.exists(d["path"]):
         raise HTTPException(status_code=410, detail="Deliverable file missing on disk")
     write_audit("deliverable.download", detail=f"id={deliverable_id} {d['filename']}")

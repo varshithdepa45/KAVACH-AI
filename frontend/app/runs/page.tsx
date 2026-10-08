@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Panel, PanelHeader, PageTitle, StatusPill } from "@/components/ui";
+import { LiveRuns } from "@/components/viz/LiveRuns";
 import { runs } from "@/lib/data";
 import { Activity, ChevronRight } from "lucide-react";
 
@@ -20,8 +21,10 @@ export default function RunsPage() {
         </StatusPill>
       </PageTitle>
 
+      <LiveRuns />
+
       <Panel>
-        <PanelHeader title="Run History" icon={<Activity className="h-4 w-4" />} sub="All executions are local · fully audited" />
+        <PanelHeader title="Run History" icon={<Activity className="h-4 w-4" />} sub="Baked demo dataset · all executions are local" />
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>

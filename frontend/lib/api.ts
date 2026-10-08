@@ -28,6 +28,51 @@ export interface KnowledgeSearchResponse {
   embedding_backend: string;
 }
 
+export interface LiveRun {
+  id: number;
+  scenario: string | null;
+  status: string; // running | completed | awaiting_review | halted | error
+  verification_score: number;
+  evidence_backed: string;
+  started_at: string;
+}
+
+export interface LiveFinding {
+  id: number;
+  title: string;
+  severity: string;
+  confidence: number;
+  equipment_id: string;
+  needs_review: number;
+  review_status: string; // pending | approved | rejected
+  evidence: { id: number; source: string; page: number | null; excerpt: string }[];
+}
+
+export interface LiveRunDetail {
+  run: LiveRun;
+  steps: { id: number; agent: string; message: string; status: string; detail: string }[];
+  findings: LiveFinding[];
+  deliverables: { id: number; filename: string; fmt: string }[];
+}
+
+export interface PlannerStep {
+  step: number;
+  action: string;
+  reason: string;
+  status: string; // completed | blocked | rejected
+}
+
+export interface AgentRunResponse extends LiveRunDetail {
+  planner: {
+    provider: string;
+    max_steps: number;
+    steps_used: number;
+    stop_reason: string;
+    trace: PlannerStep[];
+    requires_human_review: boolean;
+  };
+}
+
 async function request<T>(path: string, init: RequestInit = {}, timeoutMs = 2500): Promise<T> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
@@ -58,7 +103,12 @@ export const api = {
   knowledge: () => get<any>("/api/knowledge"),
   searchKnowledge: (query: string, topK = 4) =>
     post<KnowledgeSearchResponse>("/api/knowledge/search", { query, top_k: topK }),
-  runs: () => get<any>("/api/agents/runs"),
+  runs: () => get<LiveRun[]>("/api/agents/runs"),
+  run: (id: number) => get<LiveRunDetail>(`/api/agents/runs/${id}`, 10000),
+  // The planner loop runs synchronously on the backend, so allow it more time.
+  agentRun: (task: string) => post<AgentRunResponse>("/api/agent/run", { task }, 60000),
+  reviewFinding: (findingId: number, decision: "approve" | "reject") =>
+    post<unknown>(`/api/review/${findingId}/${decision}`, {}, 10000),
   auditLogs: () => get<any>("/api/audit-logs"),
   deliverables: () => get<any>("/api/deliverables"),
   runDemo: () =>

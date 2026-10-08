@@ -48,15 +48,26 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _subject(ctx) -> tuple[str, str]:
+    """(subject line, disclaimer) - an uploaded document is not the demo refinery."""
+    uploaded = ctx.artifacts.get("document")
+    if uploaded:
+        return (f"Source document: {uploaded['filename']}",
+                "PROTOTYPE OUTPUT - EXTRACTIVE ANALYSIS, ENGINEER REVIEW REQUIRED")
+    return (f"Facility: {scenario.FACILITY} | {scenario.UNIT}",
+            "FICTIONAL DEMONSTRATION DATA - NOT REAL FACILITY DATA")
+
+
 def _report_lines(ctx) -> list[str]:
     v = ctx.artifacts.get("verification", {})
+    subject, disclaimer = _subject(ctx)
     lines = [
         f"{config.APP_NAME} - Autonomous Inspection Report",
-        f"Facility: {scenario.FACILITY} | {scenario.UNIT}",
+        subject,
         f"Generated: {_now()} | Mode: {config.KAVACH_MODE}",
         f"Run ID: {ctx.artifacts.get('run_id')}",
         "",
-        "FICTIONAL DEMONSTRATION DATA - NOT REAL FACILITY DATA",
+        disclaimer,
         "=" * 64,
         "",
         "1. EXECUTIVE SUMMARY",
@@ -90,14 +101,15 @@ def _report_lines(ctx) -> list[str]:
 
 def _md_report(ctx) -> str:
     v = ctx.artifacts.get("verification", {})
+    subject, disclaimer = _subject(ctx)
     md = [
         f"# {config.APP_NAME} - Autonomous Inspection Report",
         "",
-        f"**Facility:** {scenario.FACILITY} - {scenario.UNIT}  ",
+        f"**{subject}**  ",
         f"**Generated:** {_now()}  ",
         f"**Mode:** `{config.KAVACH_MODE}`  |  **Run ID:** {ctx.artifacts.get('run_id')}",
         "",
-        "> FICTIONAL DEMONSTRATION DATA - NOT REAL FACILITY DATA",
+        f"> {disclaimer}",
         "",
         "## Executive Summary",
         "",
@@ -172,8 +184,8 @@ def generate_all(ctx) -> list[dict]:
         try:
             doc = docx.Document()
             doc.add_heading(f"{config.APP_NAME} - Inspection Report", level=0)
-            doc.add_paragraph(f"{scenario.FACILITY} - {scenario.UNIT}")
-            doc.add_paragraph("FICTIONAL DEMONSTRATION DATA - NOT REAL FACILITY DATA")
+            for line in _subject(ctx):
+                doc.add_paragraph(line)
             doc.add_heading("Findings", level=1)
             for f in ctx.findings:
                 doc.add_heading(f["title"], level=2)

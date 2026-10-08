@@ -70,6 +70,7 @@ export default function VaultPage() {
     try {
       const stored = await api.uploadDocument(f);
       fresh.id = String(stored.id);
+      fresh.name = stored.filename ?? fresh.name;
       setNotice(
         `${fresh.name} stored on the local backend. You can analyze it below.`,
       );
@@ -237,7 +238,7 @@ export default function VaultPage() {
                               "Review this document and identify important findings with supporting evidence.",
                             );
                             setNotice(
-                              `Analysis complete. Run ${result.run.run.id} is available in Agent Runs.`,
+                              `Analysis finished: ${result.run.findings.length} finding(s). Run #${result.run.run.id} is in Agent Runs.`,
                             );
                           } catch (error) {
                             setNotice(

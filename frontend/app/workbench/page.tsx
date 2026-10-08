@@ -15,7 +15,8 @@ import { PidViewer } from "@/components/viz/PidViewer";
 import { useKavach } from "@/lib/store";
 import { documents, findings, DEMO_TASK, formatBytes } from "@/lib/data";
 import { useLive, fetchDocuments } from "@/lib/live";
-import { api } from "@/lib/api";
+import { api, type AgentRunResponse } from "@/lib/api";
+import Link from "next/link";
 import type { KDocument } from "@/lib/types";
 import {
   Play,
@@ -27,6 +28,7 @@ import {
   ShieldCheck,
   FileOutput,
   Lock,
+  Workflow,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -50,6 +52,11 @@ export default function WorkbenchPage() {
     fetchDocuments,
     documents,
   );
+  const [agentState, setAgentState] = useState<"idle" | "running" | "error">(
+    "idle",
+  );
+  const [agentRun, setAgentRun] = useState<AgentRunResponse | null>(null);
+  const [agentError, setAgentError] = useState<string | null>(null);
   const [tab, setTab] = useState<"pipeline" | "pid">("pipeline");
   const phase = useKavach((s) => s.phase);
   const startRun = useKavach((s) => s.startRun);
@@ -87,12 +94,28 @@ export default function WorkbenchPage() {
       );
       setAnalysisState("done");
       setAnalysisMessage(
-        `Run ${result.run.run.id} completed with ${result.run.findings.length} findings. Open Agent Runs to review the evidence.`,
+        `Run #${result.run.run.id} finished with ${result.run.findings.length} finding(s) extracted from the document. Open Agent Runs to review the evidence.`,
       );
     } catch (error) {
       setAnalysisState("error");
       setAnalysisMessage(
         error instanceof Error ? error.message : "Document analysis failed",
+      );
+    }
+  }
+
+  async function runPlanner() {
+    if (!task.trim() || documentSource !== "live") return;
+    setAgentState("running");
+    setAgentError(null);
+    try {
+      setAgentRun(await api.agentRun(task.trim().slice(0, 2000)));
+      setAgentState("idle");
+    } catch (error) {
+      setAgentRun(null);
+      setAgentState("error");
+      setAgentError(
+        error instanceof Error ? error.message : "Agentic run failed",
       );
     }
   }
@@ -261,6 +284,13 @@ export default function WorkbenchPage() {
                       {analysisMessage}
                     </p>
                   )}
+                  {documentSource !== "live" && (
+                    <p className="mt-2 font-mono text-2xs text-ink-faint">
+                      Backend offline — document analysis and the agentic
+                      planner need the local FastAPI backend. Run KAVACH plays
+                      the baked demo.
+                    </p>
+                  )}
                   <div className="mt-3 flex items-center justify-between">
                     <div className="flex items-center gap-1.5">
                       {availableDocuments.slice(0, 3).map((d) => (
@@ -279,6 +309,20 @@ export default function WorkbenchPage() {
                         </button>
                       )}
                       <button
+                        onClick={runPlanner}
+                        disabled={
+                          agentState === "running" ||
+                          documentSource !== "live" ||
+                          !task.trim()
+                        }
+                        className="btn btn-ghost"
+                      >
+                        <Workflow className="h-3.5 w-3.5" />
+                        {agentState === "running"
+                          ? "Planning…"
+                          : "Run agentic planner"}
+                      </button>
+                      <button
                         onClick={() => startRun()}
                         disabled={phase === "running"}
                         className="btn btn-primary shadow-glow"
@@ -289,6 +333,13 @@ export default function WorkbenchPage() {
                   </div>
                 </div>
               </Panel>
+
+              {agentError && (
+                <p className="rounded-[3px] border border-danger/30 bg-danger/5 px-3 py-2 font-mono text-2xs text-danger">
+                  Agentic run failed: {agentError}
+                </p>
+              )}
+              {agentRun && <PlannerTrace run={agentRun} />}
 
               {!started && (
                 <Panel className="grid-bg">
@@ -514,5 +565,65 @@ function VStat({
       <div className="eyebrow mb-1">{label}</div>
       <div className={cn("font-display text-2xl font-bold", tone)}>{value}</div>
     </div>
+  );
+}
+
+/** The planner's own decisions for a bounded agentic run on the backend. */
+function PlannerTrace({ run }: { run: AgentRunResponse }) {
+  const plan = run.planner;
+  const status = run.run.status;
+  return (
+    <Panel className="animate-fadein">
+      <PanelHeader
+        title={`Agentic Planner · Run #${run.run.id}`}
+        sub={`${plan.steps_used} of ${plan.max_steps} steps · stop: ${plan.stop_reason.replace(/_/g, " ")} · provider ${plan.provider}`}
+        icon={<Workflow className="h-4 w-4" />}
+        right={
+          <StatusPill
+            tone={
+              status === "completed"
+                ? "verified"
+                : status === "awaiting_review"
+                  ? "caution"
+                  : "danger"
+            }
+            dot={false}
+          >
+            {status.replace("_", " ")}
+          </StatusPill>
+        }
+      />
+      <ol className="divide-y divide-line">
+        {plan.trace.map((t) => (
+          <li key={t.step} className="flex gap-3 px-4 py-2">
+            <span className="font-mono text-2xs text-signal">
+              {String(t.step).padStart(2, "0")}
+            </span>
+            <div className="flex-1">
+              <span className="font-mono text-xs text-ink">{t.action}</span>
+              <p className="text-2xs text-ink-muted">{t.reason}</p>
+            </div>
+            <span
+              className={cn(
+                "font-mono text-2xs",
+                t.status === "completed" ? "text-verified" : "text-danger",
+              )}
+            >
+              {t.status}
+            </span>
+          </li>
+        ))}
+      </ol>
+      <div className="flex items-center justify-between gap-2 border-t border-line px-4 py-2.5 font-mono text-2xs text-ink-muted">
+        <span>
+          {run.findings.length} finding(s) ·{" "}
+          {run.findings.filter((f) => f.needs_review).length} held for engineer
+          approval
+        </span>
+        <Link href="/runs" className="text-signal hover:underline">
+          Review in Agent Runs →
+        </Link>
+      </div>
+    </Panel>
   );
 }

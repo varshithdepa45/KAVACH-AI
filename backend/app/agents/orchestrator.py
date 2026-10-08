@@ -42,7 +42,7 @@ PIPELINE = [
 
 def run_pipeline(task_text: str, scenario_name: str = "refinery_inspection",
                  task_id: int | None = None, document: dict | None = None,
-                 document_text: str = "") -> dict:
+                 document_text: str = "", document_note: str = "") -> dict:
     """Execute the full agent pipeline and persist the trace. Returns run dict."""
     # 1) Create the run row up front so agents (deliverables) can reference it.
     run_id = db.insert("agent_runs", {
@@ -59,6 +59,7 @@ def run_pipeline(task_text: str, scenario_name: str = "refinery_inspection",
     if document:
         ctx.artifacts["document"] = document
         ctx.artifacts["document_text"] = document_text
+        ctx.artifacts["document_note"] = document_note
 
     # 2) Run agents in order.
     for agent in PIPELINE:
@@ -78,8 +79,10 @@ def run_pipeline(task_text: str, scenario_name: str = "refinery_inspection",
     # 4-5) Persist findings, evidence and deliverables.
     _persist_results(run_id, ctx)
 
-    # 6) Finalize run.
-    _finalize(run_id, ctx, "completed")
+    # 6) Finalize run. A document run with flagged findings waits for approval,
+    #    like an agentic run; the demo scenario keeps its fixed "completed" status.
+    held = document and any(f.get("needs_review") for f in ctx.findings)
+    _finalize(run_id, ctx, "awaiting_review" if held else "completed")
 
     return get_run(run_id)
 

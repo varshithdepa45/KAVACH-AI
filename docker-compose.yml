@@ -5,9 +5,10 @@
 #   → frontend  http://localhost:3000
 #   → backend   http://localhost:8000/api/health
 #
-# The `internal: true` network on the backend models the air-gap: the container
-# has no route to the outside world. The frontend keeps normal networking only
-# so a browser on the host can reach it.
+# The backend runs with KAVACH_MODE=airgapped, so the application itself refuses
+# external model providers and non-loopback inference URLs. Compose does NOT
+# isolate the container network (its port must be reachable from the host
+# browser); enforce network-level egress blocking with your host firewall.
 
 services:
   backend:

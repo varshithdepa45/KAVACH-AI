@@ -6,6 +6,9 @@ Smart India Hackathon 2026 prototype.
 **Runs fully offline. No cloud AI APIs.** All inference is mock/deterministic
 local logic behind real provider interfaces. Default mode is `airgapped`.
 
+The agents, the agentic planner loop and what is real versus mocked are
+explained in the [top-level README](../README.md).
+
 ---
 
 ## 1. Install
@@ -20,7 +23,7 @@ pip install fastapi "uvicorn[standard]" python-multipart pydantic
 pip install fpdf2 Pillow
 
 # Optional richer deliverables (guarded; skip if offline install fails):
-pip install python-docx openpyxl reportlab
+pip install python-docx openpyxl reportlab pypdf
 
 # --- or everything at once (optional heavy deps commented out in file): ---
 pip install -r requirements.txt
@@ -32,7 +35,7 @@ back to a pure-python hash embedding).
 
 ## 2. Generate demo data (once)
 
-From the **repo root** (`26117/`):
+From the **repo root**:
 
 ```bash
 python demo-data/generate_demo_data.py
@@ -81,6 +84,7 @@ Tests: `pip install -r requirements-dev.txt && python -m pytest tests -q`.
 | POST | `/api/documents/upload` | multipart upload (validated, path-safe) |
 | GET  | `/api/documents` | list documents |
 | GET  | `/api/documents/{id}` | document detail |
+| POST | `/api/documents/{id}/analyze` | run the pipeline on one stored document |
 | POST | `/api/tasks` | create task + run agent pipeline |
 | GET  | `/api/tasks/{task_id}` | task + run |
 | POST | `/api/demo/run` | run the full judge scenario |
@@ -107,19 +111,27 @@ app/
   main.py            FastAPI app, CORS, middleware, lifespan (init+seed)
   config.py          env-driven config, paths, policies
   api/routes.py      all HTTP routes
-  agents/            security, router, document, vision, knowledge,
-                     reasoning, verification, deliverable + orchestrator
+  agents/            security, router, document, vision, knowledge, reasoning,
+                     verification, deliverable, planner + orchestrator,
+                     tools (planner allowlist), review_gate (human approval)
   models/            provider abstraction (Mock/Ollama/vLLM) + deterministic router
   rag/               chunk + embed (hash fallback) + cosine + KnowledgeBase
   security/          airgap guard, upload validation, mock sandbox, middleware
-  services/          scenario content, knowledge KB, deliverables, seed, system status
+  services/          scenario content, knowledge KB, document analysis,
+                     deliverables, seed, system status
   database/          sqlite3 layer + schema
   schemas/           pydantic request/response models
 ```
 
-**Pipeline:** Security -> Router(+Planner) -> Document -> Vision -> Knowledge ->
+**Fixed pipeline:** Security -> Router -> Document -> Vision -> Knowledge ->
 Reasoning -> Verification -> Deliverable. Each step is persisted with timestamps
-and a human-readable message.
+and a human-readable message. For an uploaded document the findings are
+extracted from that document's text and each quoted excerpt is re-checked
+against it.
+
+**Agentic planner (`/api/agent/run`):** the Planner agent picks the next action
+from run state, one allowlisted tool call per step, bounded by a step limit,
+loop detection and the human-review gate.
 
 **Model router (deterministic):** task text -> task_type -> model
 (Qwen3-4B / Vision Model / Code Model / Small Fast Model) with a reason string.

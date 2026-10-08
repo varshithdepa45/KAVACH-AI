@@ -13,6 +13,13 @@ class VisionAgent(BaseAgent):
     name = "vision_agent"
 
     def run(self, ctx: RunContext) -> RunContext:
+        if ctx.artifacts.get("document"):
+            # The canned regions describe the demo P&ID only; never attribute
+            # them to a user's file.
+            ctx.add_step(self.name, "Vision analysis skipped", status="skipped",
+                         detail="No local vision model is loaded in the prototype; "
+                                "uploaded documents are analysed from extracted text only.")
+            return ctx
         # Deterministic pseudo-regions for each equipment item on the P&ID.
         regions = []
         for i, eq in enumerate(scenario.EQUIPMENT):
