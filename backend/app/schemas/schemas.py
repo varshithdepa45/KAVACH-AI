@@ -28,6 +28,31 @@ class ReviewRequest(BaseModel):
     reviewer: Optional[str] = "inspector@kavach.local"
 
 
+class KnowledgeSearchRequest(BaseModel):
+    query: str = Field(..., min_length=1, max_length=500)
+    top_k: int = Field(default=4, ge=1, le=10)
+
+
+class KnowledgeSearchResult(BaseModel):
+    id: str
+    source: str
+    page: int
+    text: str
+    score: float
+
+
+class KnowledgeSearchResponse(BaseModel):
+    query: str
+    results: list[KnowledgeSearchResult]
+    total_chunks: int
+    embedding_backend: str
+
+
+class AgentRunRequest(BaseModel):
+    task: str = Field(..., min_length=1, max_length=2000)
+    max_steps: Optional[int] = Field(default=None, ge=1, le=20)
+
+
 class GenericResponse(BaseModel):
     ok: bool = True
     detail: Optional[str] = None

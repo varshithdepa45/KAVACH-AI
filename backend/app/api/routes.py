@@ -9,12 +9,14 @@ from fastapi import APIRouter, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 
 from .. import config
-from ..agents import orchestrator
+from ..agents import orchestrator, planner_agent
+from ..agents.tools import REGISTRY
 from ..database import db
-from ..models.providers import all_providers
+from ..models.providers import active_provider_name, all_providers
 from ..models.router import routing_rules
-from ..schemas.schemas import (DemoRunRequest, HealthResponse, ReviewRequest,
-                               TaskCreate)
+from ..schemas.schemas import (AgentRunRequest, DemoRunRequest, HealthResponse,
+                               KnowledgeSearchRequest, KnowledgeSearchResponse,
+                               ReviewRequest, TaskCreate)
 from ..security.guard import ValidationError, safe_join, validate_upload
 from ..security.middleware import write_audit
 from ..services import knowledge as knowledge_service
@@ -155,6 +157,27 @@ async def demo_stream():
     return StreamingResponse(event_gen(), media_type="text/event-stream")
 
 
+# --- Agentic planner ----------------------------------------------------------
+@router.get("/agent/tools")
+def agent_tools():
+    """The fixed tool allowlist available to the planner."""
+    return {"tools": REGISTRY.describe(), "actions": list(planner_agent.ACTIONS)}
+
+
+@router.post("/agent/run")
+def agent_run(payload: AgentRunRequest):
+    """Run the bounded planner loop for a free-text task."""
+    task = payload.task.strip()
+    if not task:
+        raise HTTPException(status_code=422, detail="Task must not be blank.")
+    run = planner_agent.run_agentic(task, max_steps=payload.max_steps)
+    plan = run["planner"]
+    write_audit("agent.run",
+                detail=f"run {run['run']['id']}: {plan['steps_used']} step(s), "
+                       f"stop={plan['stop_reason']}, status={run['run']['status']}")
+    return run
+
+
 # --- Agent runs ---------------------------------------------------------------
 @router.get("/agents/runs")
 def list_runs():
@@ -178,7 +201,7 @@ def list_models():
         "models": models,
         "routing_rules": routing_rules(),
         "providers": providers,
-        "active_provider": "mock-local",
+        "active_provider": active_provider_name(),
     }
 
 
@@ -186,6 +209,24 @@ def list_models():
 @router.get("/knowledge")
 def knowledge():
     return knowledge_service.stats()
+
+
+@router.post("/knowledge/search", response_model=KnowledgeSearchResponse)
+def knowledge_search(payload: KnowledgeSearchRequest):
+    query = payload.query.strip()
+    if not query:
+        raise HTTPException(status_code=422, detail="Query must not be blank.")
+    kb = knowledge_service.get_kb()
+    # Drop non-positive similarity: those chunks share nothing with the query.
+    results = [r for r in kb.search(query, top_k=payload.top_k) if r["score"] > 0]
+    stats = kb.stats()
+    write_audit("knowledge.search", detail=f"{len(results)} chunk(s) for '{query[:80]}'")
+    return KnowledgeSearchResponse(
+        query=query,
+        results=results,
+        total_chunks=stats["total_chunks"],
+        embedding_backend=stats["backend"]["embedding_backend"],
+    )
 
 
 # --- Audit logs ---------------------------------------------------------------
@@ -212,6 +253,14 @@ def _review(finding_id: int, decision: str, payload: ReviewRequest | None):
     db.execute("UPDATE findings SET review_status=? WHERE id=?", (decision, finding_id))
     write_audit(f"review.{decision}", actor=reviewer,
                 detail=f"finding {finding_id}: {note}")
+    # An agentic run held for approval completes once every flagged finding is decided.
+    run_id = finding["run_id"]
+    pending = db.fetch_one(
+        "SELECT COUNT(*) AS n FROM findings WHERE run_id=? AND needs_review=1 "
+        "AND review_status='pending'", (run_id,))
+    if pending and pending["n"] == 0:
+        db.execute("UPDATE agent_runs SET status='completed' WHERE id=? "
+                   "AND status='awaiting_review'", (run_id,))
     return db.fetch_one("SELECT * FROM findings WHERE id=?", (finding_id,))
 
 

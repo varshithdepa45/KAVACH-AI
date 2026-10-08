@@ -64,6 +64,11 @@ Copy `.env.example` and adjust as needed. Key variables:
 | `KAVACH_MODE`         | `airgapped`  | `airgapped` blocks external providers|
 | `KAVACH_DB`           | `./kavach.db`| SQLite path                          |
 | `KAVACH_MAX_UPLOAD_MB`| `25`         | Upload size cap                      |
+| `KAVACH_INFERENCE_PROVIDER` | `mock` | `mock` or `ollama` (loopback only when airgapped) |
+| `KAVACH_PLANNER_MAX_STEPS` | `10`    | Default planner step budget (hard cap 20) |
+| `KAVACH_REVIEW_MIN_CONFIDENCE` | `75` | Findings below this need human approval |
+
+Tests: `pip install -r requirements-dev.txt && python -m pytest tests -q`.
 
 ---
 
@@ -84,6 +89,9 @@ Copy `.env.example` and adjust as needed. Key variables:
 | GET  | `/api/agents/runs/{run_id}` | full trace (steps/findings/evidence) |
 | GET  | `/api/models` | models + routing rules + providers |
 | GET  | `/api/knowledge` | KB stats + sources + sample chunks |
+| POST | `/api/knowledge/search` | RAG search (`query`, `top_k` 1-10) |
+| GET  | `/api/agent/tools` | planner tool allowlist |
+| POST | `/api/agent/run` | bounded agentic planner run (`task`, `max_steps`) |
 | GET  | `/api/audit-logs` | audit entries |
 | POST | `/api/review/{finding_id}/approve` | approve a finding |
 | POST | `/api/review/{finding_id}/reject` | reject a finding |

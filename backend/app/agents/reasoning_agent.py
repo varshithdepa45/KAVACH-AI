@@ -5,7 +5,7 @@ finding set defined in the scenario, attaching evidence to each finding.
 """
 from __future__ import annotations
 
-from ..models.providers import get_provider
+from ..models.providers import generate_with_fallback
 from ..services import scenario
 from .base import BaseAgent, RunContext
 
@@ -14,9 +14,8 @@ class ReasoningAgent(BaseAgent):
     name = "reasoning_agent"
 
     def run(self, ctx: RunContext) -> RunContext:
-        provider = get_provider()
-        # A real (deterministic) provider call, kept for architectural realism.
-        provider.generate("Synthesize inspection findings for Unit 4", model="Qwen3-4B")
+        # A real (deterministic by default) provider call, kept for architectural realism.
+        generate_with_fallback("Synthesize inspection findings for Unit 4", model="Qwen3-4B")
 
         findings: list[dict] = []
         evidence: list[dict] = []

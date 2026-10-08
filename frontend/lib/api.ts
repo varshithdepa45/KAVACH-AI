@@ -13,17 +13,41 @@ export interface HealthResponse {
   version: string;
 }
 
-async function get<T>(path: string, timeoutMs = 2500): Promise<T> {
+export interface KnowledgeSearchResult {
+  id: string;
+  source: string;
+  page: number;
+  text: string;
+  score: number; // cosine similarity, 0-1
+}
+
+export interface KnowledgeSearchResponse {
+  query: string;
+  results: KnowledgeSearchResult[];
+  total_chunks: number;
+  embedding_backend: string;
+}
+
+async function request<T>(path: string, init: RequestInit = {}, timeoutMs = 2500): Promise<T> {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const res = await fetch(`${BASE}${path}`, { signal: ctrl.signal, cache: "no-store" });
+    const res = await fetch(`${BASE}${path}`, { ...init, signal: ctrl.signal, cache: "no-store" });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return (await res.json()) as T;
   } finally {
     clearTimeout(t);
   }
 }
+
+const get = <T,>(path: string, timeoutMs?: number) => request<T>(path, {}, timeoutMs);
+
+const post = <T,>(path: string, body: unknown, timeoutMs?: number) =>
+  request<T>(
+    path,
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
+    timeoutMs,
+  );
 
 export const api = {
   base: BASE,
@@ -32,6 +56,8 @@ export const api = {
   documents: () => get<any>("/api/documents"),
   models: () => get<any>("/api/models"),
   knowledge: () => get<any>("/api/knowledge"),
+  searchKnowledge: (query: string, topK = 4) =>
+    post<KnowledgeSearchResponse>("/api/knowledge/search", { query, top_k: topK }),
   runs: () => get<any>("/api/agents/runs"),
   auditLogs: () => get<any>("/api/audit-logs"),
   deliverables: () => get<any>("/api/deliverables"),

@@ -33,6 +33,23 @@ def assert_provider_allowed(provider_name: str, *, is_external: bool) -> None:
         )
 
 
+_LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "::1"}
+
+
+def assert_local_url(url: str) -> None:
+    """In airgapped mode only loopback http(s) URLs may be contacted."""
+    from urllib.parse import urlparse
+
+    parsed = urlparse(url)
+    if parsed.scheme not in {"http", "https"}:
+        raise AirgapViolation(f"Unsupported URL scheme for local inference: '{url}'.")
+    if config.IS_AIRGAPPED and (parsed.hostname or "").lower() not in _LOOPBACK_HOSTS:
+        raise AirgapViolation(
+            f"Host '{parsed.hostname}' is not loopback and is blocked in "
+            f"KAVACH_MODE=airgapped."
+        )
+
+
 _SAFE_CHARS = re.compile(r"[^A-Za-z0-9._-]+")
 
 

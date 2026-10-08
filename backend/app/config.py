@@ -44,6 +44,24 @@ CORS_ORIGINS = [
 EXTERNAL_PROVIDERS = {"openai", "anthropic", "gemini", "google", "azure", "cohere", "bedrock"}
 
 
+# --- Local inference ----------------------------------------------------------
+# 'mock' (default) keeps the fully deterministic offline provider. 'ollama' opts
+# in to a local Ollama server; it must be a loopback URL in airgapped mode.
+_PROVIDER_ALIASES = {"mock": "mock-local", "mock-local": "mock-local", "ollama": "ollama"}
+INFERENCE_PROVIDER = _PROVIDER_ALIASES.get(
+    os.getenv("KAVACH_INFERENCE_PROVIDER", "mock").strip().lower(), "mock-local")
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3:4b")
+OLLAMA_TIMEOUT_S = float(os.getenv("OLLAMA_TIMEOUT_S", "20"))
+
+# --- Agentic planner ----------------------------------------------------------
+PLANNER_MAX_STEPS = int(os.getenv("KAVACH_PLANNER_MAX_STEPS", "10"))
+PLANNER_HARD_STEP_CAP = 20
+# Findings below this confidence always require human approval.
+REVIEW_MIN_CONFIDENCE = float(os.getenv("KAVACH_REVIEW_MIN_CONFIDENCE", "75"))
+HIGH_RISK_SEVERITIES = {"high", "critical"}
+
+
 def ensure_dirs() -> None:
     """Create all runtime directories (idempotent)."""
     for d in (DEMO_DATA_DIR, UPLOADS_DIR, GENERATED_DIR):

@@ -71,7 +71,17 @@ def run_pipeline(task_text: str, scenario_name: str = "refinery_inspection",
     # 3) Persist steps.
     _persist_steps(run_id, ctx)
 
-    # 4) Persist findings + evidence.
+    # 4-5) Persist findings, evidence and deliverables.
+    _persist_results(run_id, ctx)
+
+    # 6) Finalize run.
+    _finalize(run_id, ctx, "completed")
+
+    return get_run(run_id)
+
+
+def _persist_results(run_id: int, ctx: RunContext) -> None:
+    """Persist findings, their evidence and any deliverables for a run."""
     finding_ids: list[int] = []
     for f in ctx.findings:
         fid = db.insert("findings", {
@@ -97,7 +107,6 @@ def run_pipeline(task_text: str, scenario_name: str = "refinery_inspection",
                 "created_at": _now(),
             })
 
-    # 5) Persist deliverables.
     for d in ctx.artifacts.get("deliverables", []):
         db.insert("deliverables", {
             "run_id": run_id,
@@ -109,14 +118,13 @@ def run_pipeline(task_text: str, scenario_name: str = "refinery_inspection",
             "created_at": _now(),
         })
 
-    # 6) Finalize run.
+
+def _finalize(run_id: int, ctx: RunContext, status: str) -> None:
     db.execute(
         "UPDATE agent_runs SET status=?, verification_score=?, evidence_backed=?, "
         "finished_at=? WHERE id=?",
-        ("completed", ctx.verification_score, ctx.evidence_backed, _now(), run_id),
+        (status, ctx.verification_score, ctx.evidence_backed, _now(), run_id),
     )
-
-    return get_run(run_id)
 
 
 def _persist_steps(run_id: int, ctx: RunContext) -> None:

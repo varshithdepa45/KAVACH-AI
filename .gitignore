@@ -12,6 +12,7 @@ __pycache__/
 .venv/
 venv/
 *.egg-info/
+.pytest_cache/
 
 # KAVACH runtime artifacts
 backend/kavach.db
@@ -23,3 +24,6 @@ demo-data/uploads/*
 Thumbs.db
 .vscode/
 .idea/
+
+# TypeScript incremental build cache
+*.tsbuildinfo

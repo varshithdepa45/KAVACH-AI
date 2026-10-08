@@ -152,23 +152,62 @@ python -m uvicorn app.main:app --reload --port 8000   # → http://localhost:800
 
 The demo is **deterministic** and needs **no internet**.
 
-## 6 · Local Model Integration (replacing the mock)
+## 6 · Agentic Planner Workflow
 
-All inference goes through one interface:
+Alongside the fixed judge-demo pipeline (unchanged, still fully deterministic) the backend has a small, **bounded agentic loop**: `POST /api/agent/run`.
 
-```python
-class ModelProvider:
-    def generate(self, prompt, **kw) -> str: ...
-    def analyze_image(self, image_path, prompt, **kw) -> dict: ...
-    def embed(self, texts: list[str]) -> list[list[float]]: ...
-    def health_check(self) -> dict: ...
+```
+SecurityAgent ─► PlannerAgent ──► pick next action ──► allowlisted tool ──┐
+                      ▲                                                   │
+                      └──────────── updated run state ◄───────────────────┘
+        stops on: finish · max steps · repeated action · rejected tool call
 ```
 
-`MockLocalModelProvider` ships enabled. To use real local models:
+- **`PlannerAgent`** (`backend/app/agents/planner_agent.py`) chooses one action per step: `search_knowledge`, `inspect_document`, `analyze_pid`, `reason`, `verify`, `human_review` or `finish`. Eligible actions are derived from run state, so prerequisites cannot be skipped. For example, P&ID analysis is only planned when the task mentions a diagram.
+- **Bounded loop** — `max_steps` (default 10, hard cap 20, `KAVACH_PLANNER_MAX_STEPS`). Repeating an identical action is treated as a loop and stops the run. Any stop other than `finish` marks the run `halted` and escalates every finding to human review.
+- **Allowlisted tool registry** (`backend/app/agents/tools.py`) — a fixed, read-only set of six tools that wrap the existing agents and the local RAG index. There is no dynamic registration and **no shell, SQL, filesystem or network/cloud tool**. Unknown tool names and unexpected arguments are rejected. `GET /api/agent/tools` lists the allowlist.
+- **Human approval gate** (`backend/app/agents/review_gate.py`) — a finding is held for approval when it is high/critical severity, cites no evidence or a source that is not in the knowledge base, is below `KAVACH_REVIEW_MIN_CONFIDENCE` (default 75), or was never verified. The gate is re-applied when the loop ends, regardless of what the planner did. Such runs end as `awaiting_review` and become `completed` once every flagged finding has been approved or rejected through `/api/review/{id}/approve|reject`.
 
-1. Run a local server — e.g. `ollama serve` (pull `qwen2.5`, `qwen2-vl`, `phi3`) or vLLM.
-2. Implement/enable `OllamaProvider` / `VLLMProvider` (stubs included) and select it via `KAVACH_INFERENCE_PROVIDER`.
-3. Nothing above the provider layer changes — agents, RAG, routing and UI stay identical.
+```bash
+curl -X POST localhost:8000/api/agent/run -H 'Content-Type: application/json' \
+     -d '{"task": "Inspect Unit 4 P&ID and inspection report for corrosion", "max_steps": 10}'
+```
+
+The response is the normal run trace plus a `planner` block (`trace`, `stop_reason`, `steps_used`, `review_required`).
+
+**Live knowledge search.** `POST /api/knowledge/search` (`{"query": "...", "top_k": 4}`) queries the existing RAG `KnowledgeBase`. The **Knowledge Base** page calls it and shows a `Live backend` badge; if the backend is unreachable it shows a notice and falls back to the baked demo dataset (`Demo fallback`), so the page works offline.
+
+### Tests
+
+```bash
+cd backend
+pip install -r requirements-dev.txt
+python -m pytest tests -q
+```
+
+### Limitations
+
+- The planner's tools wrap the prototype's deterministic agents, so findings still come from the fictional scenario dataset, not from real model inference over the task text.
+- Agentic runs do not generate deliverable files; use the demo pipeline for reports.
+- The planner trace is returned in the response and stored as run steps; review reasons are not stored in their own database column.
+- The demo knowledge base is small (a handful of chunks) and uses hash embeddings unless `sentence-transformers` is installed, so similarity scores are low in absolute terms.
+- The Ollama adapter is covered only by its airgap guard test; it has not been exercised against a running Ollama server.
+
+## 6a · Local Model Integration (replacing the mock)
+
+All inference goes through `BaseModelProvider` (`backend/app/models/providers.py`): `generate`, `embed`, `health`.
+
+`MockLocalModelProvider` is the default and needs no network. Optional local Ollama support:
+
+```bash
+ollama serve && ollama pull qwen3:4b
+export KAVACH_INFERENCE_PROVIDER=ollama      # default: mock
+export OLLAMA_BASE_URL=http://localhost:11434 OLLAMA_MODEL=qwen3:4b
+```
+
+- In `airgapped` mode the Ollama URL **must be loopback** (`localhost` / `127.0.0.1`); anything else raises `AirgapViolation`.
+- With Ollama enabled, the planner may ask the model to pick among the *eligible* actions only; an unclear answer or an unreachable server falls back to the deterministic choice / mock provider.
+- `VLLMProvider` remains a stub.
 
 For real embeddings/vector search, install `chromadb` + `sentence-transformers` (import-guarded; the pure-python hash-embedding fallback is used otherwise).
 
