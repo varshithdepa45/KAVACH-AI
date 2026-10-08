@@ -41,7 +41,8 @@ PIPELINE = [
 
 
 def run_pipeline(task_text: str, scenario_name: str = "refinery_inspection",
-                 task_id: int | None = None) -> dict:
+                 task_id: int | None = None, document: dict | None = None,
+                 document_text: str = "") -> dict:
     """Execute the full agent pipeline and persist the trace. Returns run dict."""
     # 1) Create the run row up front so agents (deliverables) can reference it.
     run_id = db.insert("agent_runs", {
@@ -55,6 +56,9 @@ def run_pipeline(task_text: str, scenario_name: str = "refinery_inspection",
 
     ctx = RunContext(task_text=task_text, scenario=scenario_name)
     ctx.artifacts["run_id"] = run_id
+    if document:
+        ctx.artifacts["document"] = document
+        ctx.artifacts["document_text"] = document_text
 
     # 2) Run agents in order.
     for agent in PIPELINE:

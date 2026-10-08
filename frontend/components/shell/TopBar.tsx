@@ -36,15 +36,15 @@ export function TopBar() {
   }
 
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-line bg-canvas/85 px-5 backdrop-blur">
-      <div className="flex items-center gap-2">
+    <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-line bg-canvas/85 px-2 backdrop-blur sm:px-3 md:px-5">
+      <div className="flex min-w-0 items-center gap-2 overflow-hidden">
         <StatusPill tone="verified" pulse>
           Air-Gapped
         </StatusPill>
-        <StatusPill tone="signal">
+        <StatusPill tone="signal" className="hidden sm:inline-flex">
           <Cpu className="h-3 w-3" /> Local Inference
         </StatusPill>
-        <StatusPill tone="info">
+        <StatusPill tone="info" className="hidden md:inline-flex">
           <Lock className="h-3 w-3" /> Data Sovereignty Active
         </StatusPill>
         <span className="ml-2 hidden items-center gap-1.5 font-mono text-2xs text-ink-faint lg:inline-flex">
@@ -53,10 +53,16 @@ export function TopBar() {
       </div>
 
       <div className="flex items-center gap-4">
-        <span className="hidden font-mono text-2xs text-ink-faint sm:inline">{clock}</span>
+        <span className="hidden font-mono text-2xs text-ink-faint sm:inline">
+          {clock}
+        </span>
         <button
           onClick={launchDemo}
-          className={cn("btn", running ? "btn-danger" : "btn-primary", "shadow-glow")}
+          className={cn(
+            "btn",
+            running ? "btn-danger" : "btn-primary",
+            "shadow-glow",
+          )}
         >
           {running ? (
             <>

@@ -1,8 +1,8 @@
 import type { Config } from "tailwindcss";
 
 /**
- * KAVACH AI — "Containment Console" design tokens.
- * Graphite-navy control-room surfaces, signal-teal primary, SOC status semantics.
+ * KAVACH AI — "Neon Control Room" design tokens.
+ * Deep indigo surfaces with bright aqua, lime, orange, and cobalt signals.
  */
 const config: Config = {
   content: [
@@ -13,30 +13,30 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        canvas: "#080B11",
+        canvas: "#ffffff",
         surface: {
-          DEFAULT: "#0E1420",
-          raised: "#141C2A",
-          inset: "#0A0F18",
+          DEFAULT: "#ffffff",
+          raised: "#fafafa",
+          inset: "#f3f4f6",
         },
         line: {
-          DEFAULT: "#1E2A3B",
-          strong: "#2A3A50",
+          DEFAULT: "#d8e3ef",
+          strong: "#afc1d6",
         },
         ink: {
-          DEFAULT: "#E7EDF5",
-          muted: "#8A98AC",
-          faint: "#5A6883",
+          DEFAULT: "#15233b",
+          muted: "#52647d",
+          faint: "#7d8da4",
         },
         signal: {
-          DEFAULT: "#3DD4C0",
-          dim: "#1F6D64",
-          glow: "#5EEAD8",
+          DEFAULT: "#078c94",
+          dim: "#0b6870",
+          glow: "#2ccbd0",
         },
-        caution: "#FFB020",
-        danger: "#FF4D6D",
-        verified: "#34D399",
-        info: "#5B9DFF",
+        caution: "#bd7000",
+        danger: "#d94747",
+        verified: "#5d8f00",
+        info: "#1769c2",
       },
       fontFamily: {
         display: ["var(--font-display)", "system-ui", "sans-serif"],
@@ -47,11 +47,12 @@ const config: Config = {
         "2xs": ["0.6875rem", { lineHeight: "1rem", letterSpacing: "0.04em" }],
       },
       boxShadow: {
-        panel: "0 1px 0 0 rgba(255,255,255,0.02) inset, 0 8px 24px -12px rgba(0,0,0,0.6)",
-        glow: "0 0 0 1px rgba(61,212,192,0.35), 0 0 24px -4px rgba(61,212,192,0.35)",
+        panel:
+          "0 1px 0 0 rgba(255,255,255,0.9) inset, 0 12px 28px -18px rgba(38,65,96,0.3)",
+        glow: "0 0 0 1px rgba(7,140,148,0.3), 0 0 22px -8px rgba(7,140,148,0.35)",
       },
       backgroundImage: {
-        grid: "linear-gradient(rgba(30,42,59,0.35) 1px, transparent 1px), linear-gradient(90deg, rgba(30,42,59,0.35) 1px, transparent 1px)",
+        grid: "linear-gradient(rgba(7,140,148,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(23,105,194,0.09) 1px, transparent 1px)",
       },
       keyframes: {
         pulseline: {

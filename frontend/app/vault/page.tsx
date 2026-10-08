@@ -1,12 +1,26 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Panel, PanelHeader, PageTitle, StatusPill, SourceChip } from "@/components/ui";
+import {
+  Panel,
+  PanelHeader,
+  PageTitle,
+  StatusPill,
+  SourceChip,
+} from "@/components/ui";
 import { documents as seed, formatBytes } from "@/lib/data";
 import { useLive, fetchDocuments } from "@/lib/live";
+import { api } from "@/lib/api";
 import type { KDocument, ProcessState } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { UploadCloud, Lock, FileText, Check, Loader2, ShieldCheck } from "lucide-react";
+import {
+  UploadCloud,
+  Lock,
+  FileText,
+  Check,
+  Loader2,
+  ShieldCheck,
+} from "lucide-react";
 
 const ACCEPT = ".pdf,.png,.jpg,.jpeg,.txt,.docx,.csv,.py";
 const MAX = 25 * 1024 * 1024;
@@ -23,7 +37,7 @@ export default function VaultPage() {
     if (!uploaded) setDocs(liveDocs);
   }, [liveDocs, uploaded]);
 
-  function handleFiles(files: FileList | null) {
+  async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
     const f = files[0];
     if (f.size > MAX) {
@@ -31,7 +45,9 @@ export default function VaultPage() {
       return;
     }
     const ext = f.name.split(".").pop()?.toLowerCase() ?? "";
-    if (!["pdf", "png", "jpg", "jpeg", "txt", "docx", "csv", "py"].includes(ext)) {
+    if (
+      !["pdf", "png", "jpg", "jpeg", "txt", "docx", "csv", "py"].includes(ext)
+    ) {
       setNotice(`Rejected: .${ext} is not an allowed file type.`);
       return;
     }
@@ -51,11 +67,28 @@ export default function VaultPage() {
       chunks: 0,
     };
     setUploaded(true);
+    try {
+      const stored = await api.uploadDocument(f);
+      fresh.id = String(stored.id);
+      setNotice(
+        `${fresh.name} stored on the local backend. You can analyze it below.`,
+      );
+    } catch (error) {
+      setNotice(
+        `Upload failed: ${error instanceof Error ? error.message : "backend unavailable"}`,
+      );
+      return;
+    }
     setDocs((d) => [fresh, ...d]);
-    setNotice(`${fresh.name} stored locally · OCR started (no external upload).`);
+    setNotice(
+      `${fresh.name} stored locally · OCR started (no external upload).`,
+    );
+    const localId = fresh.id;
 
-    // Deterministic local processing simulation.
-    const stages: Array<[keyof Pick<KDocument, "ocr" | "embedding" | "indexed">, number]> = [
+    // Keep the local status animation while the backend indexes the file.
+    const stages: Array<
+      [keyof Pick<KDocument, "ocr" | "embedding" | "indexed">, number]
+    > = [
       ["ocr", 1200],
       ["embedding", 2400],
       ["indexed", 3400],
@@ -64,13 +97,15 @@ export default function VaultPage() {
       setTimeout(() => {
         setDocs((list) =>
           list.map((doc) => {
-            if (doc.id !== id) return doc;
+            if (doc.id !== localId) return doc;
             const upd: Partial<KDocument> = { [stage]: "done" as ProcessState };
             if (stage === "embedding") upd.embedding = "done";
             const next = stages[stages.findIndex((s) => s[0] === stage) + 1];
             if (next) (upd as any)[next[0]] = "running";
             if (stage === "indexed") {
-              upd.lastProcessed = new Date().toLocaleTimeString("en-GB", { hour12: false });
+              upd.lastProcessed = new Date().toLocaleTimeString("en-GB", {
+                hour12: false,
+              });
               upd.chunks = 42;
             }
             return { ...doc, ...upd };
@@ -103,12 +138,22 @@ export default function VaultPage() {
         >
           <UploadCloud className="h-7 w-7 text-signal" />
           <p className="text-sm text-ink">Drop a document to ingest, or</p>
-          <button onClick={() => inputRef.current?.click()} className="btn btn-primary">
+          <button
+            onClick={() => inputRef.current?.click()}
+            className="btn btn-primary"
+          >
             Upload Document
           </button>
-          <input ref={inputRef} type="file" accept={ACCEPT} hidden onChange={(e) => handleFiles(e.target.files)} />
+          <input
+            ref={inputRef}
+            type="file"
+            accept={ACCEPT}
+            hidden
+            onChange={(e) => handleFiles(e.target.files)}
+          />
           <p className="font-mono text-2xs text-ink-faint">
-            PDF · PNG · JPG · TXT · DOCX · CSV · PY — max 25 MB · stays on this appliance
+            PDF · PNG · JPG · TXT · DOCX · CSV · PY — max 25 MB · stays on this
+            appliance
           </p>
           {notice && (
             <p className="mt-1 rounded-[3px] border border-signal/30 bg-signal/[0.06] px-3 py-1.5 font-mono text-2xs text-signal">
@@ -120,7 +165,11 @@ export default function VaultPage() {
 
       {/* Table */}
       <Panel>
-        <PanelHeader title="Vault Contents" sub={`${docs.length} documents · encrypted at rest`} icon={<FileText className="h-4 w-4" />} />
+        <PanelHeader
+          title="Vault Contents"
+          sub={`${docs.length} documents · encrypted at rest`}
+          icon={<FileText className="h-4 w-4" />}
+        />
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
@@ -142,18 +191,29 @@ export default function VaultPage() {
                       <FileText className="h-3.5 w-3.5 text-ink-faint" />
                       <span className="text-ink">{d.name}</span>
                     </div>
-                    <span className="font-mono text-2xs text-ink-faint">{formatBytes(d.sizeBytes)} · {d.chunks} chunks</span>
+                    <span className="font-mono text-2xs text-ink-faint">
+                      {formatBytes(d.sizeBytes)} · {d.chunks} chunks
+                    </span>
                   </td>
-                  <td className="px-3 py-2.5 font-mono text-ink-muted">{d.type}</td>
+                  <td className="px-3 py-2.5 font-mono text-ink-muted">
+                    {d.type}
+                  </td>
                   <td className="px-3 py-2.5">
                     <StatusPill
-                      tone={d.classification === "CONFIDENTIAL" || d.classification === "RESTRICTED" ? "danger" : "info"}
+                      tone={
+                        d.classification === "CONFIDENTIAL" ||
+                        d.classification === "RESTRICTED"
+                          ? "danger"
+                          : "info"
+                      }
                       dot={false}
                     >
                       {d.classification}
                     </StatusPill>
                   </td>
-                  <td className="px-3 py-2.5 font-mono text-ink-muted">{d.pages}</td>
+                  <td className="px-3 py-2.5 font-mono text-ink-muted">
+                    {d.pages}
+                  </td>
                   <td className="px-3 py-2.5">
                     <div className="flex items-center gap-2">
                       <Stage label="OCR" state={d.ocr} />
@@ -161,15 +221,44 @@ export default function VaultPage() {
                       <Stage label="IDX" state={d.indexed} />
                     </div>
                   </td>
-                  <td className="px-3 py-2.5 font-mono text-2xs text-ink-muted">{d.accessLevel}</td>
-                  <td className="px-3 py-2.5 font-mono text-2xs text-ink-muted">{d.lastProcessed}</td>
+                  <td className="px-3 py-2.5 font-mono text-2xs text-ink-muted">
+                    {d.accessLevel}
+                  </td>
+                  <td className="px-3 py-2.5 font-mono text-2xs text-ink-muted">
+                    <div>{d.lastProcessed}</div>
+                    {/^[0-9]+$/.test(d.id) && (
+                      <button
+                        onClick={async () => {
+                          setNotice(`Analyzing ${d.name} locally…`);
+                          try {
+                            const result = await api.analyzeDocument(
+                              d.id,
+                              `Analyze ${d.name}`,
+                              "Review this document and identify important findings with supporting evidence.",
+                            );
+                            setNotice(
+                              `Analysis complete. Run ${result.run.run.id} is available in Agent Runs.`,
+                            );
+                          } catch (error) {
+                            setNotice(
+                              `Analysis failed: ${error instanceof Error ? error.message : "backend unavailable"}`,
+                            );
+                          }
+                        }}
+                        className="mt-1 text-signal hover:underline"
+                      >
+                        Analyze document
+                      </button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
         <div className="flex items-center gap-1.5 border-t border-line px-4 py-2.5 font-mono text-2xs text-ink-muted">
-          <ShieldCheck className="h-3.5 w-3.5 text-signal" /> No document is transmitted to any external service. OCR & embedding run locally.
+          <ShieldCheck className="h-3.5 w-3.5 text-signal" /> No document is
+          transmitted to any external service. OCR & embedding run locally.
         </div>
       </Panel>
     </div>
@@ -181,7 +270,11 @@ function Stage({ label, state }: { label: string; state: ProcessState }) {
     <span
       className={cn(
         "inline-flex items-center gap-1 font-mono text-2xs",
-        state === "done" ? "text-verified" : state === "running" ? "text-signal" : "text-ink-faint",
+        state === "done"
+          ? "text-verified"
+          : state === "running"
+            ? "text-signal"
+            : "text-ink-faint",
       )}
     >
       {state === "done" ? (

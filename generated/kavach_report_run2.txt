@@ -1,6 +1,6 @@
 KAVACH AI - Autonomous Inspection Report
 Facility: KAVACH DEMO REFINERY | Unit 4
-Generated: 2026-09-04T12:15:46.795552+00:00 | Mode: airgapped
+Generated: 2026-09-19T04:29:13.922604+00:00 | Mode: airgapped
 Run ID: 2
 
 FICTIONAL DEMONSTRATION DATA - NOT REAL FACILITY DATA
@@ -48,8 +48,8 @@ FICTIONAL DEMONSTRATION DATA - NOT REAL FACILITY DATA
    - [security_agent] Security perimeter verified
    - [router_agent] Task routed to Vision Model
    - [router_agent] Execution plan created
-   - [document_agent] Documents loaded
-   - [document_agent] OCR completed
+   - [document_agent] Uploaded document loaded
+   - [document_agent] Document analysis prepared
    - [vision_agent] P&ID regions detected
    - [knowledge_agent] Knowledge retrieved
    - [reasoning_agent] Findings generated
